@@ -1,0 +1,58 @@
+book_id: bushi-zhengzong
+book_name: 卜筮正宗
+canonical_extraction: modern-typeset-crosscheck.pdf
+canonical_status: review-needed
+source_policy: 公版清刻扫描本为权威底本；完整排印 PDF 用于 MinerU 定位与初稿，逐页校勘后才能升级为 verified。
+sources:
+  - id: saoye-shanfang-1889-01
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-01.pdf
+    pages: 61
+    sha256: 5518def55101183f7abadcd178016b86cf400f81cc4ef7913677a110272cd1bf
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017386_卜筮正宗十四卷_第一册.pdf
+    license: public-domain
+  - id: saoye-shanfang-1889-02
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-02.pdf
+    pages: 51
+    sha256: 194f081b02a5f2cc84c7f5c7c02550b5cb13fa525abd4aa392319df283a3a3af
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017387_卜筮正宗十四卷_第二册.pdf
+    license: public-domain
+  - id: saoye-shanfang-1889-03
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-03.pdf
+    pages: 50
+    sha256: 1d1cdfc64a53db942d51cc7df58b0c370b67f4a0e69180f365bad916dbf9a528
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017388_卜筮正宗十四卷_第三册.pdf
+    license: public-domain
+  - id: saoye-shanfang-1889-04
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-04.pdf
+    pages: 64
+    sha256: 9153733204d88dee7e85259a27c83df3d1b34a1ef19b70467b6e6c0636c16255
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017389_卜筮正宗十四卷_第四册.pdf
+    license: public-domain
+  - id: saoye-shanfang-1889-05
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-05.pdf
+    pages: 65
+    sha256: bb91fa5b55e254b90af377154c907a87a2c49a770b15900e892994d867f6da63
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017390_卜筮正宗十四卷_第五册.pdf
+    license: public-domain
+  - id: saoye-shanfang-1889-06
+    role: authority-scan
+    local_path: 1889-saoye-shanfang-06.pdf
+    pages: 66
+    sha256: 1668ace3dab6f4deaa3feed013cd4a1f26750c68a86357f2fea67865a4e8fd7a
+    url: https://commons.wikimedia.org/wiki/File:NCPSSD-70017391_卜筮正宗十四卷_第六册.pdf
+    license: public-domain
+  - id: modern-typeset-crosscheck
+    role: ocr-crosscheck
+    local_path: modern-typeset-crosscheck.pdf
+    pages: 87
+    sha256: a8c7ac3ea15fbadc3dc0acc03d39b0ade1ab246215d25bc793d72f3a867116f3
+    url: https://www.xuanxuecenter.com/files/bu_shi_zheng_zong.pdf
+  - id: ctext-889452
+    role: comparison-only
+    url: https://ctext.org/wiki.pl?chapter=889452&if=gb
+    issue: 与旧本相同，末尾在“原忌仇神论第四 / 凡占卦�”处截断。

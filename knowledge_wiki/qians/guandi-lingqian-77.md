@@ -1,0 +1,28 @@
+---
+id: qian:guandi-lingqian:77
+type: qian
+domain: qian
+aliases: []
+intents: ["career", "divination", "exam", "health", "wealth"]
+surfaces: ["qian", "chat", "library"]
+status: verified
+---
+
+# 關聖帝君靈籤 · 第77簽
+
+> 签级：下下；按原典栏目汇总签诗、签解与占验。
+
+- 签号：第77簽
+- 签级：下下
+- 原典栏目：commentary, explanation, interpretation, poem, sacred_meaning
+
+## 原典分栏
+
+- [签诗 · 第 608 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0467-passage-00608)：呂后害韓信木有根荄水有源。君當自此究其原。莫隨道路人閒話。訟到終凶是至言。到■則
+- [聖意 · 第 609 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0468-passage-00609)：訟當戒。病宜禳。名不利。婚難老。防口舌。行未到。凡事謹。莫輕躁。
+- [聖意 · 第 610 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0468-passage-00610)：禳■禱未■人功名：雖志功名　似乎已絕　雜務之多　無法專心六甲：修吾身者　切改妒心　本性可去　即生貴子求財：試之以小　損失亦少　不宜貪婪　否則堪虞婚姻：萬萬不可　世間異類　設法分手　不可動武農牧：四季辛勞　仍是空空　天不從之　時也命耶失物：去
+- [東坡解 · 第 611 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0469-passage-00611)：禍因惡積。當究其源。最宜向善。病保安存。自當謹慎。勿信人言。若有偏徇。禍及家門。
+- [碧仙註 · 第 612 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0470-passage-00612)：口是禍之因。人言有過迍。訟則終不利。謹守福隨身。■口是禍之門。人言總見真。公庭無一字。謹守福隨身。□註→百家姓起頭。趙錢孫李。公庭無一字。暗指錢行頭。
+- [解曰 · 第 613 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0471-passage-00613)：此籤先凶後吉。根原已定。不可妄為。自宜謹慎。禍去福來。訟當審。財利無。婚不好。有口舌。行人未至。病猶可禳。凡事不可信人。自宜省察。免災也。
+- [釋義 · 第 614 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0472-passage-00614)：善者福之本。惡者禍之本。讀書積蓄。求名利之本。無其本而欲名成利。就福得禍遠。難矣。然又當推其既往。驗其將來果。目前之得而吉。則今日亦得而吉。目前之失而凶。則今日之失亦凶。凡事皆然。不可不慎言。不可聽。訟不可成。目下求財。不可得。故事及記載：
+- [釋義 · 第 615 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0472-passage-00615)：信功居多。初封齊王。後改封楚王。高祖後疑其反。乃偽遊雲夢。執歸京師。降封淮陰侯。信以失職。怨望羞與縫灌等為伍。會帝親征陳豨。家僅上變。呂后乃與蕭何定計。誘信入朝。竟斬信於未央宮。夷其三族。

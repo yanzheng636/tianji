@@ -1,0 +1,18 @@
+book_id: bushi-zhengzong
+records:
+  - id: bushi-tail-20260715
+    kind: replace-truncated-source
+    old_source: ../../wiki/卜筮正宗.txt
+    old_tail: "原忌仇神論第四\n凡占卦�"
+    replacement_source: modern-typeset-crosscheck.pdf
+    authority_sources:
+      - 1889-saoye-shanfang-01.pdf
+      - 1889-saoye-shanfang-02.pdf
+      - 1889-saoye-shanfang-03.pdf
+      - 1889-saoye-shanfang-04.pdf
+      - 1889-saoye-shanfang-05.pdf
+      - 1889-saoye-shanfang-06.pdf
+    verified_anchor: 原忌仇神论第四
+    verified_continuation: 凡占卦要知原神，先看用神何爻，生用神之爻即是原神也。
+    status: review-needed
+    note: 旧文件保留不覆盖；知识库改由完整 PDF 经 MinerU 提取，逐页对清刻本校勘后再升级质量。

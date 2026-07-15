@@ -1,0 +1,24 @@
+book_id: liuzhuang-xiangfa
+book_name: 柳庄相法
+canonical_extraction: 1925-wenming-shuju-qin-shenan.pdf
+canonical_status: review-needed
+source_policy: 1925 文明书局秦慎安校勘本作为主底本，1944 重庆上海书局本作异本复核；ctext 仅比对。
+sources:
+  - id: wenming-shuju-1925
+    role: authority-scan
+    local_path: 1925-wenming-shuju-qin-shenan.pdf
+    pages: 152
+    sha256: e75f6fbad4336dfeb62e50d54507c2c3e4bf8f69b4b93f89062b868ddae90eac
+    url: https://commons.wikimedia.org/wiki/File:NLC416-13jh001257-42702_柳莊相法.pdf
+    license: public-domain
+  - id: chongqing-shanghai-shuju-1944
+    role: alternate-scan
+    local_path: 1944-chongqing-shanghai-shuju.pdf
+    pages: 113
+    sha256: 2cb1084920ded762ace904a3de3117b0b9f1f83801635e013467bf7c7c4b2cca
+    url: https://commons.wikimedia.org/wiki/File:NLC416-15jh007317-91918_柳莊相法.pdf
+    license: public-domain
+  - id: ctext-90958
+    role: comparison-only
+    url: https://ctext.org/wiki.pl?chapter=90958&if=gb&remap=gb
+    issue: 与旧本相同，末尾在“女若鼻低，出嫁夫”处截断。

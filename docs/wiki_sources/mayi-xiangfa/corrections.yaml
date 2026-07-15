@@ -1,0 +1,5 @@
+book_id: mayi-xiangfa
+records: []
+notes:
+  - 当前仅建立逐页复核登记表，未完成原图对照的页面保持 review-needed。
+  - 每条人工修订须记录 page、old_text、new_text、source、anchor 和 status；不得静默覆盖 MinerU 原始缓存。

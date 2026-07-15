@@ -1,0 +1,29 @@
+---
+id: qian:guandi-lingqian:45
+type: qian
+domain: qian
+aliases: []
+intents: ["career", "divination", "exam", "health", "wealth"]
+surfaces: ["qian", "chat", "library"]
+status: verified
+---
+
+# 關聖帝君靈籤 · 第45簽
+
+> 签级：中平；按原典栏目汇总签诗、签解与占验。
+
+- 签号：第45簽
+- 签级：中平
+- 原典栏目：commentary, explanation, interpretation, poem, sacred_meaning
+
+## 原典分栏
+
+- [签诗 · 第 350 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0275-passage-00350)：高祖遇丁公好將心地力耕耘。彼此山頭總是墳。陰地不如心地好。修為到底卻輸君。
+- [聖意 · 第 351 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0276-passage-00351)：心地好。地亦美。病即安。訟得理。財勿求。且守己。行人至。終有喜。
+- [聖意 · 第 352 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0276-passage-00352)：功名：恨鐵未鋼　願訓勉之　終能償願　再接再厲六甲：平安養性　連生貴子　積善得之　榮宗耀祖求財：善求勿狡　騙人一次　信用全去　不可不慎婚姻：辰相佳好　天作之合　配合得宜　百年偕老農牧：本是見低　入秋之後　佳音頻傳　入冬大奸失物：失之不意　勿爾
+- [東坡解 · 第 353 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0277-passage-00353)：好修心地。莫用他求。但依本分。可獲天庥。勿與人競。福力自優。子孫之慶。皆善之由。
+- [碧仙註 · 第 354 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0278-passage-00354)：人己初來用意同。好將心地問天公。若還虧卻分毫理。萬事教君吉又凶。初來■營謀
+- [解曰 · 第 355 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0279-passage-00355)：此籤不可妄求。但依本分。方得天之庥庇。問地利。不宜遷改。行人必至。病則安。求財無。且宜守舊。訟必凶。宜和息。凡事只宜修積善心。庶免災禍也。
+- [釋義 · 第 356 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0280-passage-00356)：人之名勢凌逼。我固不能勝彼。然不可處之太驟。惟務修為。天必佑之。而使輸於我。所謂卻輸君也。占者貨財生殖。但當守舊。不可妄為。功名在後。方得榮華。風水不宜更改。雖好無益。終不如心地好也。凡事不可爭長競短。但修為以待之。故事及記載：■高祖遇丁公
+- [釋義 · 第 357 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0280-passage-00357)：逐窘漢高祖於彭城。西兵短接。高祖急顧曰。兩賢豈相厄哉。丁公乃還。及高祖即位來謁。帝曰丁公為臣不忠。使項王失天下者也。遂斬之。曰使後為人臣無傚丁公也。■丁公告高祖喻世明言第三十一卷載。閻王殿上。丁公訴曰。某在戰場圍漢皇。皇許平分天下故放皇。稱
+- [釋義 · 第 358 段](../sources/passages/guandi-lingqian.md#source-guandi-lingqian-section-0280-passage-00358)：漢皇以丁公背項羽故誅之。事公辯曰。紀信替皇死。卻不封贈。項伯不忠。反賜封侯。雍齒為項將。後封什方侯。漢皇無言以對。

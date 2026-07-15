@@ -1,0 +1,18 @@
+book_id: liuzhuang-xiangfa
+records:
+  - id: liuzhuang-tail-20260715
+    kind: replace-truncated-source
+    old_source: ../../wiki/柳庄相法
+    old_tail: 女若鼻低，出嫁夫
+    replacement_source: 1925-wenming-shuju-qin-shenan.pdf
+    alternate_source: 1944-chongqing-shanghai-shuju.pdf
+    status: review-needed
+    note: 旧文件保留不覆盖；完整扫描本经 MinerU 提取后进入逐页复核队列。
+  - id: liuzhuang-tail-page-81-20260715
+    kind: manual-transcription
+    source: 1925-wenming-shuju-qin-shenan.pdf
+    page: 81
+    old_tail: 女若鼻低，出嫁夫
+    verified_continuation: 女若鼻低，出嫁夫家大败。男生斑点，招妻丧命亡家也。男死女不犯刑，可保其性命。
+    status: verified
+    note: 已对 PDF 第 81 页原图逐字核对；此状态仅适用于该修复锚点，不代表整页其余文字或全书 OCR 已校勘。
