@@ -10,6 +10,8 @@ const Qian = lazy(() => import('./pages/Qian').then((m) => ({ default: m.Qian })
 const Incense = lazy(() => import('./pages/Incense').then((m) => ({ default: m.Incense })));
 const Wishes = lazy(() => import('./pages/Wishes').then((m) => ({ default: m.Wishes })));
 const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
+const LibraryDomain = lazy(() => import('./pages/Library').then((m) => ({ default: m.LibraryDomain })));
+const LibraryConcept = lazy(() => import('./pages/Library').then((m) => ({ default: m.LibraryConcept })));
 const Book = lazy(() => import('./pages/Library').then((m) => ({ default: m.Book })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
 const Lamp = lazy(() => import('./pages/Lamp').then((m) => ({ default: m.Lamp })));
@@ -30,7 +32,7 @@ export const useTianji = () => {
 };
 
 function PageLoader() {
-  return <div className="page-loader" role="status"><span className="seal-spinner">天</span><p>正在穿过山门…</p></div>;
+  return <div className="page-loader" role="status"><span className="seal-spinner">山</span><p>正在入山…</p></div>;
 }
 
 export function App() {
@@ -65,6 +67,8 @@ export function App() {
             <Route path="/incense" element={<Incense />} />
             <Route path="/wishes" element={<Wishes />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/library/domain/:slug" element={<LibraryDomain />} />
+            <Route path="/library/concept/:conceptId" element={<LibraryConcept />} />
             <Route path="/library/:slug" element={<Book />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/chart" element={<Profile />} />

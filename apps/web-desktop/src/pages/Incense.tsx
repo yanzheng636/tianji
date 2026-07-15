@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api, ApiError } from '../api';
 import { useTianji } from '../App';
 import type { Incense as IncenseType } from '../types';
@@ -18,24 +18,60 @@ export function Incense() {
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
   useEffect(() => { void api.incenseActive().then(setActive).catch(() => undefined); }, []);
-  useEffect(() => { if (!active) return; const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [active]);
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+
   const left = useMemo(() => active ? Math.max(0, Math.ceil((new Date(active.endsAt).getTime() - now) / 1000)) : 0, [active, now]);
+  const progress = active ? Math.max(0, Math.min(100, (left / 1800) * 100)) : 100;
   const time = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
 
   const light = async () => {
     setBusy(true); setError('');
     try { setActive(await api.lightIncense(selected, wish.trim() || undefined)); setWish(''); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : '香火暂未点燃'); }
+    catch (reason) { setError(reason instanceof ApiError ? reason.message : '此刻未能开始静坐，请稍后再试'); }
     finally { setBusy(false); }
   };
 
   return (
-    <div className="inner-page incense-page">
-      <header className="page-heading"><div><p className="eyebrow">留半个时辰 · 与自己安坐</p><h1>香火殿</h1></div><p>点香不是向外求一个结果，而是给自己一段不被打扰的时间。</p></header>
-      <div className="content-wrap incense-layout">
-        <section className="incense-visual paper-panel"><div className={active && left > 0 ? 'incense-stick is-burning' : 'incense-stick'}><div className="smoke"><i /><i /><i /></div><span /></div><div className="incense-clock"><small>{active && left > 0 ? active.name + ' · 燃香中' : '香案已净 · 静候一念'}</small><strong>{active && left > 0 ? time : '30:00'}</strong><p>{active && left > 0 ? '这段时间，不必急着得到答案。' : '选一炷香，写下一句想对自己说的话。'}</p></div></section>
-        <section className="incense-form"><p className="aside-label">择一炷香</p><div className="incense-options">{incenses.map((item) => <button key={item.key} className={selected === item.key ? 'active' : ''} onClick={() => setSelected(item.key)} disabled={Boolean(active && left > 0)}><span>{item.char}</span><div><b>{item.name}</b><small>{item.desc}</small></div></button>)}</div><label>寄语 <small>可不写</small><textarea className="field" rows={4} maxLength={200} value={wish} onChange={(event) => setWish(event.target.value)} placeholder="愿我在纷乱里，仍能看清真正重要的事。" /></label><button className="primary-button wide" onClick={light} disabled={busy || Boolean(active && left > 0)}>{active && left > 0 ? '此香正在燃烧' : busy ? '正在点香…' : '点燃此香'}</button>{error ? <p className="form-error">{error}</p> : null}<p className="section-note">计时由寺中服务器记录，关闭页面后仍会继续。</p></section>
+    <div className="ritual-page incense-page">
+      <header className="ritual-heading">
+        <p className="museum-label"><span>静室</span><i />半个时辰</p>
+        <h1>留一段时间，<br />只与自己相处。</h1>
+        <p>点香不是向外求一个结果，而是把注意力重新带回当下。</p>
+      </header>
+
+      <div className="ritual-stage">
+        <section className="ritual-clock" aria-live="polite">
+          <div className={active && left > 0 ? 'time-orbit is-active' : 'time-orbit'} style={{ '--ritual-progress': `${progress}%` } as CSSProperties}>
+            <div><small>{active && left > 0 ? '静坐剩余' : '一次静坐'}</small><strong>{active && left > 0 ? time : '30:00'}</strong><span>{active && left > 0 ? active.name : '山中无事'}</span></div>
+          </div>
+          <blockquote>{active && left > 0 ? '这段时间，不必急着得到答案。' : '先让呼吸慢下来，再写一句真正想对自己说的话。'}</blockquote>
+          <small>计时由服务端记录，离开页面后仍会继续</small>
+        </section>
+
+        <section className="ritual-form">
+          <div className="ritual-form-head"><span>选择此刻的心意</span><small>壹 / 贰</small></div>
+          <div className="intention-options">
+            {incenses.map((item) => (
+              <button key={item.key} className={selected === item.key ? 'active' : ''} onClick={() => setSelected(item.key)} disabled={Boolean(active && left > 0)}>
+                <span>{item.char}</span><div><b>{item.name}</b><small>{item.desc}</small></div><i>{selected === item.key ? '已选' : '选择'}</i>
+              </button>
+            ))}
+          </div>
+          <label className="ritual-message">写给此刻的自己 <small>可不写</small>
+            <textarea rows={4} maxLength={200} value={wish} onChange={(event) => setWish(event.target.value)} placeholder="愿我在纷乱里，仍能看清真正重要的事。" />
+            <span>{wish.length} / 200</span>
+          </label>
+          <button className="ritual-submit" onClick={light} disabled={busy || Boolean(active && left > 0)}>
+            {active && left > 0 ? '静坐正在进行' : busy ? '正在开始…' : '开始半小时静坐'}<span>→</span>
+          </button>
+          {error ? <p className="form-error">{error}</p> : null}
+        </section>
       </div>
     </div>
   );

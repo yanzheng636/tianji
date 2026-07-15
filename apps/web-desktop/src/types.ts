@@ -15,6 +15,17 @@ export interface ChatMessage { id: string; role: 'user' | 'assistant'; text: str
 export interface BookSummary { slug: string; char: string; name: string; meta: string; passageCount: number }
 export interface Passage { id: string; chapter: string; text: string; plain: string }
 export interface BookDetail extends BookSummary { passages: Passage[] }
+export interface WikiBookRef { slug: string; name: string; meta: string }
+export interface WikiDomainSummary { slug: string; name: string; char: string; description: string; conceptCount: number; passageCount: number; books: WikiBookRef[] }
+export interface WikiConceptRef { id: string; name: string; definition: string; intents: string[]; evidenceCount: number }
+export interface WikiDomainDetail extends WikiDomainSummary { concepts: WikiConceptRef[] }
+export type WikiQuality = 'verified' | 'review-needed' | 'unusable';
+export interface WikiEvidence { sourceId: string; book: string; chapter: string; text: string; quality: WikiQuality; path: string }
+export interface WikiRelatedConcept { id: string; name: string; relation: string }
+export interface WikiConceptDetail { id: string; name: string; domain: string; domainName: string; definition: string; aliases: string[]; intents: string[]; status: WikiQuality; evidence: WikiEvidence[]; evidenceTotal: number; related: WikiRelatedConcept[] }
+export interface WikiConceptHit { id: string; name: string; domain: string; domainName: string; definition: string; evidenceCount: number }
+export interface WikiPassageHit { book: string; chapter: string; text: string; quality: WikiQuality; sourceId: string | null; path: string; concepts: string[] }
+export interface WikiSearchResult { concepts: WikiConceptHit[]; passages: WikiPassageHit[] }
 export interface BaziPillar { gan: string; zhi: string; label: string }
 export interface BaziChart { pillars: BaziPillar[]; dayMaster: string; zodiac: string; lunarDate: string; solarTermsNote: string; fiveElements: Record<string, number>; summary: string; hourKnown: boolean }
 export interface BirthProfile { gender: 'male' | 'female'; birthDate: string; birthHour: number | null; birthPlace: string | null }

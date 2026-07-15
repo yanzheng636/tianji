@@ -13,6 +13,7 @@ export function Wishes() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+
   useEffect(() => { void api.wishPool().then(setPool).catch(() => undefined); }, []);
   const wishes = pool?.floating?.length ? pool.floating : sampleWishes;
 
@@ -22,18 +23,44 @@ export function Wishes() {
     try {
       const wish = await api.createWish(text.trim());
       setPool((current) => current ? { ...current, mine: [wish, ...current.mine] } : { total: 1, floating: [], mine: [wish] });
-      setText(''); setNotice(wish.moderation === 'approved' ? '心愿已挂上愿墙' : '心愿已收下，审核后会出现在愿墙');
-    } catch (error) { setNotice(error instanceof ApiError ? error.message : '心愿暂未送达，请稍后再试'); }
+      setText(''); setNotice(wish.moderation === 'approved' ? '这句话已留在愿池' : '这句话已收下，审核后会出现在愿池');
+    } catch (error) { setNotice(error instanceof ApiError ? error.message : '这句话暂未送达，请稍后再试'); }
     finally { setBusy(false); }
   };
 
   return (
-    <div className="inner-page wishes-page">
-      <header className="page-heading wishes-heading"><div><p className="eyebrow">凡愿有声 · 写给未来的自己</p><h1>许愿池</h1></div><p>愿望不是交换，而是一种确认：我知道自己珍惜什么，也愿意为它走一段路。</p></header>
-      <div className="wish-ribbon"><span>{pool?.total ?? 108}</span> 个愿望正在风中轻响</div>
-      <div className="content-wrap wishes-layout">
-        <section className="wish-wall"><div className="section-row"><div><p className="aside-label">愿墙</p><h2 className="section-title">听见人间心事</h2></div><small>只展示审核通过的公开愿望</small></div><div className="wish-grid">{wishes.slice(0, 9).map((wish, index) => <article key={wish.id} className={`wish-plaque tone-${index % 3}`}><span>愿</span><p>{wish.text}</p><small>{new Date(wish.createdAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</small><i /></article>)}</div></section>
-        <aside className="make-wish paper-panel"><span className="vertical-title">写下一愿</span><p className="eyebrow dark">此愿由你开始</p><h2>你真正盼望的，<br />是什么？</h2><p>写得具体一些。不是“希望一切顺利”，而是你愿意为之行动的那件事。</p><textarea className="field" maxLength={200} rows={6} value={text} onChange={(event) => setText(event.target.value)} placeholder="愿我……" /><div className="wish-count">{text.length} / 200</div><button className="primary-button wide" onClick={submit} disabled={busy || !text.trim()}>{busy ? '正在系上愿牌…' : '把心愿挂上愿墙'}</button>{notice ? <p className="wish-notice">{notice}</p> : null}<small>公开愿望需经过内容审核，不会展示个人联系方式。</small></aside>
+    <div className="wish-ledger-page">
+      <header className="wish-ledger-heading">
+        <div><p className="museum-label"><span>愿池</span><i />人间心事</p><h1>写下所愿，<br />也写下愿意走的路。</h1></div>
+        <div className="wish-total"><strong>{pool?.total ?? 108}</strong><span>个愿望<br />正在被认真对待</span></div>
+      </header>
+
+      <div className="wish-ledger-layout">
+        <section className="wish-editor">
+          <div className="wish-editor-index">你的愿望 · 001</div>
+          <h2>真正盼望的，<br />是什么？</h2>
+          <p>写得具体一些。不是“一切顺利”，而是你愿意为之行动的那件事。</p>
+          <div className="wish-writing-area">
+            <textarea maxLength={200} rows={7} value={text} onChange={(event) => setText(event.target.value)} placeholder="愿我……" />
+            <span>{text.length} / 200</span>
+          </div>
+          <button onClick={submit} disabled={busy || !text.trim()}>{busy ? '正在收下…' : '把这句话留在愿池'}<span>→</span></button>
+          {notice ? <p className="wish-notice" role="status">{notice}</p> : null}
+          <small>公开内容会先经过审核，不会展示联系方式与个人身份。</small>
+        </section>
+
+        <section className="wish-voices">
+          <div className="wish-voices-head"><div><span>愿池来信</span><h2>听见别人，也照见自己</h2></div><small>只展示审核通过的公开内容</small></div>
+          <div className="wish-entries">
+            {wishes.slice(0, 6).map((wish, index) => (
+              <article key={wish.id}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <blockquote>{wish.text}</blockquote>
+                <time>{new Date(wish.createdAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</time>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

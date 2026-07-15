@@ -1,4 +1,4 @@
-import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, Quota, TodayFortune, User, Wish, WishPool } from './types';
+import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, Quota, TodayFortune, User, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiSearchResult, Wish, WishPool } from './types';
 
 const TOKEN_KEY = 'tj_desktop_guest_token_v1';
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -13,7 +13,12 @@ async function request<T>(method: string, path: string, body?: unknown, retryGue
   const token = getToken();
   if (token) headers.authorization = `Bearer ${token}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
-  const response = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  let response: Response;
+  try {
+    response = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch {
+    throw new ApiError('NETWORK_UNAVAILABLE', '无法连接山问服务，请确认后端 API 已启动', 0);
+  }
   const data = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401 && retryGuest) {
@@ -21,7 +26,10 @@ async function request<T>(method: string, path: string, body?: unknown, retryGue
       await api.ensureGuest();
       return request<T>(method, path, body, false);
     }
-    throw new ApiError(data?.error?.code ?? 'UNKNOWN', data?.error?.message ?? '山门暂时未开，请稍后再试', response.status);
+    const fallbackMessage = response.status >= 500
+      ? '山问服务暂时不可用，请确认后端 API 已启动'
+      : '请求未能完成，请稍后再试';
+    throw new ApiError(data?.error?.code ?? 'UNKNOWN', data?.error?.message ?? fallbackMessage, response.status);
   }
   return data as T;
 }
@@ -54,6 +62,10 @@ export const api = {
   books: () => request<BookSummary[]>('GET', '/api/scripture/books'),
   book: (slug: string) => request<BookDetail>('GET', `/api/scripture/books/${slug}`),
   search: (query: string) => request<Citation[]>('GET', `/api/scripture/search?q=${encodeURIComponent(query)}`),
+  wikiDomains: () => request<WikiDomainSummary[]>('GET', '/api/wiki/domains'),
+  wikiDomain: (slug: string) => request<WikiDomainDetail>('GET', `/api/wiki/domains/${encodeURIComponent(slug)}`),
+  wikiConcept: (id: string) => request<WikiConceptDetail>('GET', `/api/wiki/concepts/${encodeURIComponent(id)}`),
+  wikiSearch: (query: string) => request<WikiSearchResult>('GET', `/api/wiki/search?q=${encodeURIComponent(query)}`),
   getProfile: () => request<{ profile: BirthProfile | null; chart: BaziChart | null }>('GET', '/api/profile'),
   saveProfile: (profile: Partial<BirthProfile> & { nickname?: string }) => request<{ profile: BirthProfile; chart: BaziChart }>('PUT', '/api/profile', profile),
   chatHistory: () => request<ChatMessage[]>('GET', '/api/chat/history'),
@@ -72,7 +84,7 @@ export function streamChat(body: { text: string; qianId?: string }, onEvent: (ev
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      if (!response.ok || !response.body) throw new Error('天机推演暂时中断');
+      if (!response.ok || !response.body) throw new Error('山问服务暂时中断，请稍后再试');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';

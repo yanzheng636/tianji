@@ -5,7 +5,7 @@ import { useTianji } from '../App';
 import type { Qian as QianResult, Quota } from '../types';
 
 const fallbackHalls = [
-  { key: 'qianfang', name: '天机', char: '机', sub: '万事皆可问', topic: 'general' },
+  { key: 'qianfang', name: '问心', char: '问', sub: '万事皆可问', topic: 'general' },
   { key: 'wenshu', name: '文殊', char: '文', sub: '学业与抉择', topic: 'study' },
   { key: 'yuelao', name: '月老', char: '缘', sub: '关系与情感', topic: 'love' },
   { key: 'caishen', name: '财神', char: '财', sub: '事业与取舍', topic: 'career' },
@@ -44,7 +44,7 @@ export function Qian() {
         <div className="qian-chamber-grain" />
 
         <header className="qian-chamber-header">
-          <p className="museum-label"><span>{currentCopy.name}</span><i />ORACLE CHAMBER</p>
+          <p className="museum-label"><span>{currentCopy.name}</span><i />签室</p>
           <div><span>今日尚可求签</span><strong>{quota?.remaining ?? '—'}</strong><span>次</span></div>
         </header>
 
@@ -81,13 +81,13 @@ export function Qian() {
 }
 
 function hallCopy(item: { key: string; name: string; char: string; sub: string } | undefined) {
-  if (!item) return { name: '天机签房', sub: '今日一事' };
+  if (!item) return { name: '山问签室', sub: '今日一事' };
   const copies: Record<string, { name: string; sub: string }> = {
-    文: { name: '文殊殿', sub: '学业与抉择' },
-    缘: { name: '月老祠', sub: '关系与情感' },
-    财: { name: '财神殿', sub: '事业与取舍' },
-    机: { name: '天机殿', sub: '万事皆可问' },
-    签: { name: '天机签房', sub: '今日一事' },
+    文: { name: '问学', sub: '学业与抉择' },
+    缘: { name: '问缘', sub: '关系与情感' },
+    财: { name: '问业', sub: '事业与取舍' },
+    机: { name: '问心', sub: '万事皆可问' },
+    签: { name: '山问签室', sub: '今日一事' },
   };
   return copies[item.char] ?? { name: item.name, sub: item.sub.includes('·') ? '静心观照' : item.sub };
 }
@@ -96,7 +96,7 @@ function QianReading({ result, onReset }: { result: QianResult; onReset: () => v
   return (
     <div className="premium-qian-result">
       <div className="premium-qian-paper">
-        <span>{result.no}</span><strong>{result.text}</strong><i>{result.level}</i><small>天机寺签</small>
+        <span>{result.no}</span><strong>{result.text}</strong><i>{result.level}</i><small>山问签录</small>
       </div>
       <article>
         <p className="museum-label"><span>此签照见</span><i />READING</p>
