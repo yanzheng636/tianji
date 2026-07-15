@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174,
+    allowedHosts: ['.loca.lt', '.trycloudflare.com', '.ngrok-free.app'],
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:3001',
