@@ -28,15 +28,11 @@ export function Wish() {
     requireAuth(async () => {
       setCoin(true);
       try {
-        const w = await api.createWish(text);
+        await api.createWish(text);
         setInput('');
         setWriting(false);
         setTimeout(() => setCoin(false), 1200);
-        if (w.moderation === 'rejected') {
-          showToast('心愿含不当内容，未能入池');
-        } else {
-          showToast('叮咚 · 愿望已入池，天机已记录');
-        }
+        showToast('愿望已记下 · 记得为何出发');
         load();
       } catch (e) {
         setCoin(false);
@@ -57,7 +53,7 @@ export function Wish() {
     });
   };
 
-  const floating = (pool?.floating ?? []).slice(0, 5);
+  const personalWishes = (pool?.mine ?? []).slice(0, 5);
 
   return (
     <div className="tj-body" style={{
@@ -68,11 +64,11 @@ export function Wish() {
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 4, color: '#F4E8CD' }}>许愿池</div>
         <div style={{ flex: 1 }} />
         <div style={{ fontFamily: mono, fontSize: 10, color: 'rgba(212,162,78,0.65)' }}>
-          {pool?.total ?? 0} 愿在池中
+          {pool?.total ?? 0} 颗个人愿星
         </div>
       </div>
 
-      {/* 星空池面 */}
+      {/* 个人愿星图 */}
       <div style={{ position: 'relative', height: 300, marginTop: 4, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 18, right: 40, width: 52, height: 52, borderRadius: '50%', background: 'radial-gradient(circle at 42% 38%, #FBF2DC, #E9D6A4 70%, #DCC38A)', boxShadow: '0 0 44px 14px rgba(246,235,210,0.22)' }} />
         {[[34, 48], [74, 118], [22, 210], [96, 300]].map(([top, left], i) => (
@@ -85,19 +81,19 @@ export function Wish() {
           <div style={{ position: 'absolute', left: '50%', top: '68%', width: 20, height: 20, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #F2DA9C, #B8863B)', border: '2px solid #8A6428', boxShadow: '0 0 12px rgba(242,218,156,0.5)', animation: 'tjCoin 1.1s ease-in forwards' }} />
         )}
 
-        {floating.map((w, i) => {
+        {personalWishes.map((w, i) => {
           const pos = FLOAT_POS[i % FLOAT_POS.length];
           return (
             <div key={w.id} style={{ position: 'absolute', left: pos.x, top: pos.y, animation: `tjDrift ${pos.dur} ease-in-out infinite` }}>
               <div style={{ animation: 'tjLantern 3s ease-in-out infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 14, height: 16, borderRadius: '7px 7px 5px 5px', background: 'radial-gradient(circle at 50% 30%, #FFE9B0, #E8A94E 75%)', boxShadow: '0 0 14px 4px rgba(255,211,122,0.4)' }} />
-                <div style={{ fontSize: 11, color: 'rgba(244,232,205,0.88)', letterSpacing: 1, whiteSpace: 'nowrap', textShadow: '0 0 10px rgba(255,211,122,0.4)' }}>{w.text}</div>
+                <div style={{ width: 14, height: 16, opacity: w.status === 'fulfilled' ? 0.48 : 1, borderRadius: '7px 7px 5px 5px', background: w.status === 'fulfilled' ? 'radial-gradient(circle at 50% 30%, #B7C0BA, #77847D 75%)' : 'radial-gradient(circle at 50% 30%, #FFE9B0, #E8A94E 75%)', boxShadow: w.status === 'fulfilled' ? '0 0 10px 2px rgba(167,182,173,0.18)' : '0 0 14px 4px rgba(255,211,122,0.4)' }} />
+                <div style={{ fontSize: 11, color: w.status === 'fulfilled' ? 'rgba(190,202,195,0.52)' : 'rgba(244,232,205,0.88)', letterSpacing: 1, whiteSpace: 'nowrap', textShadow: w.status === 'fulfilled' ? 'none' : '0 0 10px rgba(255,211,122,0.4)' }}>{w.text}</div>
               </div>
             </div>
           );
         })}
         <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, textAlign: 'center', fontFamily: mono, fontSize: 9, color: 'rgba(228,213,180,0.38)', letterSpacing: 3 }}>
-          众生的愿望正漂在池面 · 匿名
+          这片星图只属于你
         </div>
       </div>
 
@@ -154,16 +150,10 @@ export function Wish() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.6, color: '#F4E8CD' }}>{w.text}</div>
                 <div style={{ fontFamily: mono, fontSize: 10, color: 'rgba(228,213,180,0.42)', marginTop: 3 }}>
-                  {w.status === 'fulfilled'
-                    ? '已应验还愿'
-                    : w.moderation === 'rejected'
-                    ? '未通过审核 · 仅自己可见'
-                    : w.moderation === 'pending'
-                    ? '审核中'
-                    : '愿望进行中'}
+                  {w.status === 'fulfilled' ? '已应验还愿' : '愿望进行中'}
                 </div>
               </div>
-              {w.status === 'active' && w.moderation === 'approved' && (
+              {w.status === 'active' && (
                 <button className="tj-reset tj-clickable" onClick={() => fulfill(w.id)} style={{ fontSize: 12, border: '1px solid rgba(212,162,78,0.6)', color: '#E9D6A4', borderRadius: 999, padding: '6px 12px', fontWeight: 700, whiteSpace: 'nowrap', background: 'transparent' }}>应验了</button>
               )}
               {w.status === 'fulfilled' && (

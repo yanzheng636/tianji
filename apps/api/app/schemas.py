@@ -145,6 +145,15 @@ class QianOut(CamelModel):
     note: str
     topic: str
     drawn_at: datetime
+    saved: bool = False
+
+
+class SaveQianIn(CamelModel):
+    saved: bool
+
+
+class SavedStateOut(CamelModel):
+    saved: bool
 
 
 class QuotaOut(CamelModel):
@@ -152,6 +161,7 @@ class QuotaOut(CamelModel):
     used: int
     limit: int
     remaining: int
+    unlimited: bool = False
 
 
 # ── 上香 ──
@@ -195,7 +205,7 @@ class WishOut(CamelModel):
     id: str
     text: str
     status: Literal["active", "fulfilled"]
-    # 审核状态：approved 进公共池；pending/rejected 仅本人可见
+    # 审核结果仅供服务端防御与运营排查，个人愿池不向用户展示审核流程。
     moderation: Literal["pending", "approved", "rejected"] = "approved"
     moderation_reason: str | None = None
     created_at: datetime
@@ -205,7 +215,7 @@ class WishOut(CamelModel):
 
 class WishPoolOut(CamelModel):
     total: int
-    floating: list[WishOut]  # 公共池随机漂浮
+    floating: list[WishOut]  # 兼容旧客户端；个人愿池固定返回空数组
     mine: list[WishOut]
 
 

@@ -11,7 +11,10 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from functools import lru_cache
 from typing import Any
+
+from opencc import OpenCC
 
 from app.knowledge.graph_catalog import (
     CONCEPT_BY_ID,
@@ -33,6 +36,16 @@ DOMAIN_CHAR = {
 # 词条页原文证据默认一页的条数；全部证据经 /concepts/{id}/evidence 按页翻阅，
 # 避免把上百段 OCR 原文一次性倒给用户。
 MAX_EVIDENCE = 10
+
+# 语料多为繁体 OCR、用户输入多为简体：检索匹配前双方都归一到简体再比对。
+# 缓存主要装语料静态文本（数千条便稳定复用）；用户查询共用同一缓存，靠 LRU 淘汰。
+_T2S = OpenCC("t2s")
+
+
+@lru_cache(maxsize=8192)
+def _zh(text: str) -> str:
+    """繁→简归一，仅用于匹配比较，展示仍是原文。"""
+    return _T2S.convert(text)
 
 # 概念↔概念关系的中文标签（用于词条页「相关概念」的胶囊）。
 RELATION_LABEL = {
@@ -230,8 +243,8 @@ def concept_evidence(
 ) -> dict[str, Any] | None:
     """词条证据翻页：offset/limit 取任意一页；query 按空格分词，全部命中才保留。
 
-    语料多为繁体 OCR，匹配是朴素子串（书名 / 章节 / 正文任一字段），
-    不做简繁转换——输入需与原文用字一致。
+    匹配是简繁归一后的子串（书名 / 章节 / 正文任一字段）：
+    简体输入「福禄」「汉高祖」能命中繁体原文「福祿」「漢高祖」，反向亦然。
     """
     index = get_graph_index()
     if index is None:
@@ -241,12 +254,15 @@ def concept_evidence(
         return None
 
     items = _collect_evidence(index, node)
-    terms = [t for t in query.split() if t]
+    terms = [_zh(t) for t in query.split() if t]
     if terms:
         items = [
             e
             for e in items
-            if all(t in e["text"] or t in e["book"] or t in e["chapter"] for t in terms)
+            if all(
+                t in _zh(e["text"]) or t in _zh(e["book"]) or t in _zh(e["chapter"])
+                for t in terms
+            )
         ]
     return {
         "items": items[offset : offset + limit],
@@ -285,6 +301,7 @@ def concept_detail(concept_id: str) -> dict[str, Any] | None:
 
 
 def _match_concepts(index: GraphIndex, query: str, limit: int) -> list[dict[str, Any]]:
+    query = _zh(query)
     hits: list[tuple[float, dict[str, Any]]] = []
     for node in index.nodes.values():
         if node.get("type") != "concept":
@@ -296,8 +313,10 @@ def _match_concepts(index: GraphIndex, query: str, limit: int) -> list[dict[str,
             terms.update(spec.aliases)
         # 双向子串：词条名出现在问句里（「印堂发黑怎么办」→ 印堂），
         # 或输入只是词条名的一部分（「关圣」→ 关圣帝君灵签），都算命中。
+        # 比较在简繁归一后进行：粘贴繁体原文「簽詩」也能落到「签诗」。
         score = 0.0
         for term in terms:
+            term = _zh(term)
             if not term:
                 continue
             if term == query:

@@ -1,4 +1,4 @@
-import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatSession, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, Quota, TodayFortune, User, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiEvidencePage, WikiSearchResult, Wish, WishPool } from './types';
+import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatSession, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, QianReadingStreamEvent, Quota, TodayFortune, User, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiEvidencePage, WikiSearchResult, Wish, WishPool } from './types';
 
 const TOKEN_KEY = 'tj_desktop_guest_token_v1';
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -54,6 +54,8 @@ export const api = {
   today: () => request<TodayFortune>('GET', '/api/meta/today'),
   drawQian: (hall: string, topic?: string) => request<Qian>('POST', '/api/qian/draw', { hall, topic }),
   qianQuota: () => request<Quota>('GET', '/api/qian/quota'),
+  saveQian: (id: string, saved: boolean) => request<{ saved: boolean }>('POST', `/api/qian/${encodeURIComponent(id)}/save`, { saved }),
+  listSavedQian: () => request<Qian[]>('GET', '/api/qian/saved'),
   incenseActive: () => request<Incense | null>('GET', '/api/incense/active'),
   lightIncense: (type: string, wish?: string) => request<Incense>('POST', '/api/incense/light', { type, wish }),
   wishPool: () => request<WishPool>('GET', '/api/wishes'),
@@ -114,4 +116,63 @@ export function streamChat(body: { text: string; qianId?: string; sessionId?: st
     }
   })();
   return () => controller.abort();
+}
+
+export function streamQianReading(drawId: string, onEvent: (event: QianReadingStreamEvent) => void) {
+  const controller = new AbortController();
+  let finished = false;
+  let watchdog = 0;
+  const armWatchdog = () => {
+    window.clearTimeout(watchdog);
+    watchdog = window.setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      onEvent({ type: 'error', message: '签意暂未展开' });
+      controller.abort();
+    }, 18000);
+  };
+  const emit = (event: QianReadingStreamEvent) => {
+    if (finished) return;
+    if (event.type === 'done' || event.type === 'error') {
+      finished = true;
+      window.clearTimeout(watchdog);
+    } else {
+      armWatchdog();
+    }
+    onEvent(event);
+  };
+  armWatchdog();
+  void (async () => {
+    try {
+      await api.ensureGuest();
+      const response = await fetch(`/api/qian/${encodeURIComponent(drawId)}/reading`, {
+        headers: { authorization: `Bearer ${getToken()}` },
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) throw new Error('签意暂未展开');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          try { emit(JSON.parse(line.slice(5).trim()) as QianReadingStreamEvent); } catch { /* wait for the next complete event */ }
+        }
+      }
+      if (!finished) emit({ type: 'error', message: '签意暂未展开' });
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') emit({ type: 'error', message: (error as Error).message || '签意暂未展开' });
+    }
+  })();
+  return () => {
+    finished = true;
+    window.clearTimeout(watchdog);
+    controller.abort();
+  };
 }

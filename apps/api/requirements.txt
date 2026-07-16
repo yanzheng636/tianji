@@ -4,6 +4,7 @@ fastapi==0.139.0
 httpx==0.28.1
 lunar-python==1.4.8
 openai==2.45.0
+opencc==1.4.1
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pyjwt==2.13.0

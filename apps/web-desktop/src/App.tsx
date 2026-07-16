@@ -14,6 +14,7 @@ const LibraryDomain = lazy(() => import('./pages/Library').then((m) => ({ defaul
 const LibraryConcept = lazy(() => import('./pages/Library').then((m) => ({ default: m.LibraryConcept })));
 const Book = lazy(() => import('./pages/Library').then((m) => ({ default: m.Book })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
+const SavedQians = lazy(() => import('./pages/SavedQians').then((m) => ({ default: m.SavedQians })));
 const Lamp = lazy(() => import('./pages/Lamp').then((m) => ({ default: m.Lamp })));
 const Palm = lazy(() => import('./pages/Palm').then((m) => ({ default: m.Palm })));
 
@@ -72,6 +73,7 @@ export function App() {
             <Route path="/library/:slug" element={<Book />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/chart" element={<Profile />} />
+            <Route path="/profile/qians" element={<SavedQians />} />
             <Route path="/lamp" element={<Lamp />} />
             <Route path="/palm" element={<Palm />} />
             <Route path="*" element={<Navigate to="/" replace />} />

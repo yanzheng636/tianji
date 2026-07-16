@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "dev-only-secret-change-me-in-production-0123456789"
     jwt_expires_days: int = 30
+
+    # Quota（0 表示无限；当前求签默认不限次数）
+    qian_daily_limit: int = Field(default=0, ge=0)
 
     # LLM
     llm_provider: str = "mock"  # mock | deepseek

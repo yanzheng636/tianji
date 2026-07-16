@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants import FREE_QUOTA, LAMP_QUOTA
+from app.core.config import settings
 from app.core.errors import quota_exceeded
 from app.models import DailyQuota, Entitlement
 from app.schemas import QuotaOut
@@ -31,6 +32,8 @@ async def is_lamp_user(db: AsyncSession, user_id: str) -> bool:
 
 
 async def limit_for(db: AsyncSession, user_id: str, kind: str) -> int:
+    if kind == "qian":
+        return settings.qian_daily_limit
     lamp = await is_lamp_user(db, user_id)
     table = LAMP_QUOTA if lamp else FREE_QUOTA
     return table[kind]
@@ -38,6 +41,8 @@ async def limit_for(db: AsyncSession, user_id: str, kind: str) -> int:
 
 async def get_quota(db: AsyncSession, user_id: str, kind: str) -> QuotaOut:
     limit = await limit_for(db, user_id, kind)
+    if kind == "qian" and limit == 0:
+        return QuotaOut(kind=kind, used=0, limit=0, remaining=0, unlimited=True)
     used = await db.scalar(
         select(DailyQuota.used).where(
             DailyQuota.user_id == user_id,
@@ -51,6 +56,8 @@ async def get_quota(db: AsyncSession, user_id: str, kind: str) -> QuotaOut:
 async def consume(db: AsyncSession, user_id: str, kind: str) -> QuotaOut:
     """原子 +1，超限抛 429。用 upsert 避免并发下丢计数。"""
     limit = await limit_for(db, user_id, kind)
+    if kind == "qian" and limit == 0:
+        return QuotaOut(kind=kind, used=0, limit=0, remaining=0, unlimited=True)
     day = _today()
 
     stmt = (

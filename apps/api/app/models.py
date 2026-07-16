@@ -13,6 +13,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -87,6 +88,7 @@ class QianDraw(Base, TimestampMixin):
     hall: Mapped[str] = mapped_column(String(20))
     topic: Mapped[str] = mapped_column(String(20))
     qian_slug: Mapped[str] = mapped_column(String(40))
+    saved: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     __table_args__ = (Index("ix_qian_user_created", "user_id", "created_at"),)
 

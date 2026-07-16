@@ -5,8 +5,9 @@ export interface HallMeta { key: string; name: string; code: string; char: strin
 export interface IncenseMeta { key: string; char: string; name: string; desc: string; durationSec: number }
 export interface LampPlanMeta { key: string; name: string; priceFen: number; days: number | null; recommended: boolean }
 export interface MetaConfig { halls: HallMeta[]; incenses: IncenseMeta[]; lampPlans: LampPlanMeta[]; disclaimer: string }
-export interface Qian { id: string; no: string; level: string; story: string; text: string; src: string; note: string; topic: string; drawnAt: string }
-export interface Quota { kind: string; used: number; limit: number; remaining: number }
+export interface Qian { id: string; no: string; level: string; story: string; text: string; src: string; note: string; topic: string; drawnAt: string; saved: boolean }
+export type QianReadingStreamEvent = { type: 'delta'; text: string } | { type: 'done' } | { type: 'error'; message: string };
+export interface Quota { kind: string; used: number; limit: number; remaining: number; unlimited: boolean }
 export interface Incense { id: string; type: string; name: string; startedAt: string; endsAt: string; durationSec: number; remainingSec: number; status: 'burning' | 'done' }
 export interface Wish { id: string; text: string; status: 'active' | 'fulfilled'; moderation: 'pending' | 'approved' | 'rejected'; moderationReason: string | null; createdAt: string; fulfilledAt: string | null; mine: boolean }
 export interface WishPool { total: number; floating: Wish[]; mine: Wish[] }

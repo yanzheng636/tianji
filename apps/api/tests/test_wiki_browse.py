@@ -71,6 +71,16 @@ def test_concept_evidence_query_requires_all_terms(monkeypatch):
     assert wiki.concept_evidence(CONCEPT_ID, query="不存在的词")["total"] == 0
 
 
+def test_concept_evidence_query_unifies_simplified_and_traditional(monkeypatch):
+    """语料是繁体（婚姻聯），简体输入也要能命中；反向粘贴繁体同样可用。"""
+    monkeypatch.setattr(wiki, "get_graph_index", _fake_index)
+
+    simplified = wiki.concept_evidence(CONCEPT_ID, query="婚姻联")
+    traditional = wiki.concept_evidence(CONCEPT_ID, query="婚姻聯")
+    assert simplified["total"] == traditional["total"] == 16  # i % 3 != 0 的 16 段
+    assert all("婚姻聯" in e["text"] for e in simplified["items"])  # 展示仍是原文
+
+
 def test_concept_evidence_unknown_concept_returns_none(monkeypatch):
     monkeypatch.setattr(wiki, "get_graph_index", _fake_index)
     assert wiki.concept_evidence("concept:qian:nope") is None
@@ -86,4 +96,6 @@ def test_search_matches_partial_and_full_concept_names(monkeypatch):
     assert [c["name"] for c in wiki.search("吉凶")["concepts"]] == ["签级"]
     # 原有方向仍然成立：问句里包含词条名
     assert [c["name"] for c in wiki.search("签级是什么意思")["concepts"]] == ["签级"]
+    # 粘贴繁体也能命中简体词条名
+    assert [c["name"] for c in wiki.search("簽級")["concepts"]] == ["签级"]
     assert wiki.search("八字")["concepts"] == []

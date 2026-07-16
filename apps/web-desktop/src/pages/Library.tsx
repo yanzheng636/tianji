@@ -168,7 +168,7 @@ function EvidenceSection({ detail }: { detail: WikiConceptDetail }) {
       {!loading && !error ? (data.items.length ? data.items.map((evidence, index) => {
         const open = expanded.has(evidence.sourceId);
         return <article key={evidence.sourceId}><div className="wiki-evidence-index"><span>{String(page * EVIDENCE_PAGE_SIZE + index + 1).padStart(2, '0')}</span><QualityBadge quality={evidence.quality} /></div><div><p>《{evidence.book}》<small>{evidence.chapter}</small></p><blockquote className={open ? 'is-open' : ''}>{evidence.text}</blockquote><button onClick={() => toggle(evidence.sourceId)}>{open ? '收起原文 ↑' : '展开原文 ↓'}</button></div></article>;
-      }) : <div className="wiki-empty"><b>{activeQuery ? '没有命中的原文' : '暂无可展示证据'}</b><p>{activeQuery ? '换一个更短的关键词，或注意原文多为繁体用字。' : '该词条仍在整理中。'}</p></div>) : null}
+      }) : <div className="wiki-empty"><b>{activeQuery ? '没有命中的原文' : '暂无可展示证据'}</b><p>{activeQuery ? '换一个更短的关键词试试，简体繁体都可以。' : '该词条仍在整理中。'}</p></div>) : null}
       {totalPages > 1 && !error ? (
         <nav className="wiki-evidence-pager" aria-label="证据分页">
           <button disabled={page === 0 || loading} onClick={() => goto(0)}>«</button>

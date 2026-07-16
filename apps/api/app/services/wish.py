@@ -1,4 +1,4 @@
-"""许愿池：投币许愿（UGC，过审核）、还愿、公共池漂浮。"""
+"""个人愿池：记录愿望、还愿，并只向本人返回愿望历史。"""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _to_out(row: Wish, mine: bool) -> WishOut:
 
 
 async def create(db: AsyncSession, user_id: str, text: str) -> WishOut:
-    # UGC 必须过审。审核通过才进公共池；被拒仅本人可见 + 标注原因。
+    # 审核结果只作为服务端防御信息保留，不影响本人查看自己的愿望。
     passed, reason = await get_moderation().check_text(text)
     row = Wish(
         user_id=user_id,
@@ -39,9 +39,6 @@ async def create(db: AsyncSession, user_id: str, text: str) -> WishOut:
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    if not passed:
-        # 不抛错——让用户看到自己的愿，但不进公共池；前端可提示未通过
-        pass
     return _to_out(row, mine=True)
 
 
@@ -58,31 +55,21 @@ async def fulfill(db: AsyncSession, user_id: str, wish_id: str) -> WishOut:
 
 
 async def pool(db: AsyncSession, user_id: str | None, floating_limit: int = 12) -> WishPoolOut:
-    total = await db.scalar(
-        select(func.count()).select_from(Wish).where(Wish.moderation == "approved")
-    ) or 0
+    # 保留 floating_limit 参数，避免破坏现有内部调用；个人愿池不再抽取公共内容。
+    _ = floating_limit
+    if not user_id:
+        return WishPoolOut(total=0, floating=[], mine=[])
 
-    # 公共池：随机抽一批已通过审核的愿漂浮
-    floating_rows = (
+    total = await db.scalar(
+        select(func.count()).select_from(Wish).where(Wish.user_id == user_id)
+    ) or 0
+    mine_rows = (
         await db.scalars(
             select(Wish)
-            .where(Wish.moderation == "approved")
-            .order_by(func.random())
-            .limit(floating_limit)
+            .where(Wish.user_id == user_id)
+            .order_by(Wish.created_at.desc())
+            .limit(200)
         )
     ).all()
-    floating = [_to_out(r, mine=bool(user_id) and r.user_id == user_id) for r in floating_rows]
-
-    mine: list[WishOut] = []
-    if user_id:
-        mine_rows = (
-            await db.scalars(
-                select(Wish)
-                .where(Wish.user_id == user_id)
-                .order_by(Wish.created_at.desc())
-                .limit(50)
-            )
-        ).all()
-        mine = [_to_out(r, mine=True) for r in mine_rows]
-
-    return WishPoolOut(total=total, floating=floating, mine=mine)
+    mine = [_to_out(row, mine=True) for row in mine_rows]
+    return WishPoolOut(total=total, floating=[], mine=mine)

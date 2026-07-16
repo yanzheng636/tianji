@@ -2,8 +2,19 @@
 
 import re
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.core.errors import AppError
 from app.knowledge.qianpu import get_qianpu, qian_by_slug
+from app.models import QianDraw, User
+from app.providers.llm.mock import MockLlm
+from app.routers import qian as qian_router
+from app.schemas import SaveQianIn
+from app.services import qian as qian_service
 from app.services.qian import _weighted_pick
 
 # 切换签谱前数据库里已有的抽签记录 slug，必须永远可解析
@@ -66,3 +77,127 @@ def test_weighted_pick_always_valid():
     qians = get_qianpu()
     for _ in range(200):
         assert _weighted_pick(None) in qians
+
+
+@pytest_asyncio.fixture
+async def qian_db() -> AsyncSession:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(User.__table__.create)
+        await connection.run_sync(QianDraw.__table__.create)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+    await engine.dispose()
+
+
+async def _seed_draws(db: AsyncSession) -> tuple[User, User, list[QianDraw]]:
+    owner = User(phone="13800000001", nickname="甲")
+    other = User(phone="13800000002", nickname="乙")
+    db.add_all([owner, other])
+    await db.flush()
+    now = datetime.now(UTC)
+    rows = [
+        QianDraw(
+            user_id=owner.id,
+            hall="qianfang",
+            topic="general",
+            qian_slug="gd-07",
+            saved=False,
+            created_at=now - timedelta(minutes=2),
+        ),
+        QianDraw(
+            user_id=owner.id,
+            hall="wenshu",
+            topic="exam",
+            qian_slug="gd-13",
+            saved=True,
+            created_at=now,
+        ),
+        QianDraw(
+            user_id=other.id,
+            hall="yuelao",
+            topic="love",
+            qian_slug="gd-19",
+            saved=True,
+            created_at=now + timedelta(minutes=1),
+        ),
+    ]
+    db.add_all(rows)
+    await db.commit()
+    return owner, other, rows
+
+
+@pytest.mark.asyncio
+async def test_save_unsave_and_saved_list_only_returns_owned_saved(qian_db: AsyncSession):
+    owner, _, rows = await _seed_draws(qian_db)
+
+    assert await qian_service.set_saved(qian_db, owner.id, rows[0].id, True) is True
+    saved = await qian_service.list_saved(qian_db, owner.id)
+    assert [item.id for item in saved] == [rows[1].id, rows[0].id]
+    assert all(item.saved for item in saved)
+
+    assert await qian_service.set_saved(qian_db, owner.id, rows[1].id, False) is False
+    saved = await qian_service.list_saved(qian_db, owner.id)
+    assert [item.id for item in saved] == [rows[0].id]
+
+
+@pytest.mark.asyncio
+async def test_other_users_draw_is_reported_as_404(qian_db: AsyncSession):
+    owner, other, rows = await _seed_draws(qian_db)
+    with pytest.raises(AppError) as save_error:
+        await qian_router.save_qian(
+            rows[0].id, SaveQianIn(saved=True), user=other, db=qian_db
+        )
+    assert save_error.value.status_code == 404
+
+    with pytest.raises(AppError) as reading_error:
+        await qian_router.reading(rows[2].id, user=owner, db=qian_db)
+    assert reading_error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_mock_reading_has_stable_reflective_structure(
+    qian_db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    owner, _, rows = await _seed_draws(qian_db)
+
+    async def no_chart(_db: AsyncSession, _user_id: str):
+        return None
+
+    monkeypatch.setattr(qian_service.profile, "get_chart", no_chart)
+    monkeypatch.setattr(qian_service, "get_llm", lambda: MockLlm())
+    events = [
+        event async for event in qian_service.interpret(qian_db, owner.id, rows[0].id)
+    ]
+    text = "".join(event.get("text", "") for event in events)
+    assert [event["type"] for event in events] == ["delta", "done"]
+    assert "今日可做" in text
+    assert "心若从容" in text
+    assert "预测" not in text
+
+
+@pytest.mark.asyncio
+async def test_real_provider_short_reply_gets_action_and_closing_fallback(
+    qian_db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    owner, _, rows = await _seed_draws(qian_db)
+
+    class ShortLlm:
+        name = "openai-compatible:test"
+
+        async def stream(self, *_args, **_kwargs):
+            yield "你正站在需要慢一点看清心意的时刻。"
+
+    async def no_chart(_db: AsyncSession, _user_id: str):
+        return None
+
+    monkeypatch.setattr(qian_service.profile, "get_chart", no_chart)
+    monkeypatch.setattr(qian_service, "get_llm", lambda: ShortLlm())
+    events = [
+        event async for event in qian_service.interpret(qian_db, owner.id, rows[0].id)
+    ]
+    text = "".join(event.get("text", "") for event in events)
+    assert "今日可做" in text
+    assert text.count("\n") >= 2
+    assert events[-1]["type"] == "done"
