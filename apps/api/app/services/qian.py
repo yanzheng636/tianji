@@ -37,24 +37,54 @@ MOCK_READING = (
 )
 
 
+# 先按产品概率选签级分组，再在组内抽具体签。权重总和固定为 100，
+# 主题只能影响组内候选，不能改变签级分布。
+_LEVEL_GROUPS: tuple[tuple[tuple[str, ...], int], ...] = (
+    (("大吉",), 8),
+    (("上上",), 25),
+    (("上吉",), 20),
+    (("中吉", "上平"), 20),
+    (("中平",), 22),
+    (("下吉", "下平", "下下"), 5),
+)
+_LEVEL_WEIGHT_TOTAL = sum(weight for _, weight in _LEVEL_GROUPS)
+if _LEVEL_WEIGHT_TOTAL != 100 or any(weight <= 0 for _, weight in _LEVEL_GROUPS):
+    raise RuntimeError("invalid qian level distribution")
+
+
+def _pick_level_group() -> tuple[str, ...]:
+    roll = secrets.randbelow(_LEVEL_WEIGHT_TOTAL)
+    upto = 0
+    for levels, weight in _LEVEL_GROUPS:
+        upto += weight
+        if roll < upto:
+            return levels
+    raise RuntimeError("qian level distribution is incomplete")
+
+
+def _pick_from_candidates(
+    candidates: tuple[QianEntry, ...], topic: str | None
+) -> QianEntry:
+    if not candidates:
+        raise AppError(503, "QIANPU_UNAVAILABLE", "签谱尚未就绪，请稍后再试")
+    weights = [3 if topic and topic in q.topics else 1 for q in candidates]
+    roll = secrets.randbelow(sum(weights))
+    upto = 0
+    for q, weight in zip(candidates, weights):
+        upto += weight
+        if roll < upto:
+            return q
+    raise RuntimeError("qian candidate distribution is incomplete")
+
+
 def _weighted_pick(topic: str | None) -> QianEntry:
-    """与主题匹配的签权重更高，但仍保留随机性（天注定的体感）。"""
+    """按固定签级概率选组，再在组内按主题加权选具体签。"""
     qians = get_qianpu()
     if not qians:
         raise AppError(503, "QIANPU_UNAVAILABLE", "签谱尚未就绪，请稍后再试")
-    weights: list[int] = []
-    for q in qians:
-        w = 3 if topic and topic in q.topics else 1
-        weights.append(w)
-    total = sum(weights)
-    # 用 secrets 取加密级随机，杜绝可预测
-    r = secrets.randbelow(total)
-    upto = 0
-    for q, w in zip(qians, weights):
-        upto += w
-        if r < upto:
-            return q
-    return qians[-1]
+    levels = _pick_level_group()
+    candidates = tuple(q for q in qians if q.level in levels)
+    return _pick_from_candidates(candidates, topic)
 
 
 def _to_out(row: QianDraw, q: QianEntry) -> QianOut:

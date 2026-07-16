@@ -1,7 +1,6 @@
 """摇签：签谱与知识库同源 + 加密级随机 + 主题加权。"""
 
 import re
-from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -61,16 +60,85 @@ def test_slug_unique_and_legacy_slugs_still_resolve():
         assert qian_by_slug(slug) is not None
 
 
-def test_weighted_pick_biases_topic():
-    # 大样本下，指定主题的签出现频率应显著高于其在全表的占比。
-    # 用 love 检验：原典签谱里约半数签标注姻缘意图，加权才有区分度
-    # （wealth/career 等意图几乎每签都有，无从观察偏置）。
-    n = 4000
+def test_level_group_weights_are_valid():
+    assert qian_service._LEVEL_WEIGHT_TOTAL == 100
+    assert all(weight > 0 for _, weight in qian_service._LEVEL_GROUPS)
+
+
+@pytest.mark.parametrize(
+    ("roll", "expected"),
+    [
+        (0, ("大吉",)),
+        (7, ("大吉",)),
+        (8, ("上上",)),
+        (32, ("上上",)),
+        (33, ("上吉",)),
+        (52, ("上吉",)),
+        (53, ("中吉", "上平")),
+        (69, ("中吉", "上平")),
+        (70, ("中平",)),
+        (94, ("中平",)),
+        (95, ("下吉", "下平", "下下")),
+        (99, ("下吉", "下平", "下下")),
+    ],
+)
+def test_level_group_boundaries(
+    monkeypatch: pytest.MonkeyPatch, roll: int, expected: tuple[str, ...]
+):
+    def fake_randbelow(total: int) -> int:
+        assert total == 100
+        return roll
+
+    monkeypatch.setattr(qian_service.secrets, "randbelow", fake_randbelow)
+    assert qian_service._pick_level_group() == expected
+
+
+@pytest.mark.parametrize(
+    ("roll", "allowed_levels"),
+    [
+        (0, {"大吉"}),
+        (8, {"上上"}),
+        (33, {"上吉"}),
+        (53, {"中吉", "上平"}),
+        (70, {"中平"}),
+        (95, {"下吉", "下平", "下下"}),
+    ],
+)
+def test_weighted_pick_stays_in_selected_level_group(
+    monkeypatch: pytest.MonkeyPatch, roll: int, allowed_levels: set[str]
+):
+    rolls = iter((roll, 0))
+    monkeypatch.setattr(qian_service.secrets, "randbelow", lambda _: next(rolls))
+    assert _weighted_pick("love").level in allowed_levels
+
+
+def test_topic_weight_only_affects_candidates_within_group(
+    monkeypatch: pytest.MonkeyPatch,
+):
     qians = get_qianpu()
-    counts = Counter("love" in _weighted_pick("love").topics for _ in range(n))
-    love_ratio = counts[True] / n
-    base_ratio = sum(1 for q in qians if "love" in q.topics) / len(qians)
-    assert love_ratio > base_ratio  # 加权确实提升了命中率
+    matched = next(q for q in qians if q.level == "上上" and "love" in q.topics)
+    unmatched = next(q for q in qians if q.level == "上上" and "love" not in q.topics)
+    candidates = (matched, unmatched)
+
+    monkeypatch.setattr(qian_service.secrets, "randbelow", lambda total: total - 2)
+    assert qian_service._pick_from_candidates(candidates, "love") is matched
+
+    monkeypatch.setattr(qian_service.secrets, "randbelow", lambda total: total - 1)
+    assert qian_service._pick_from_candidates(candidates, "love") is unmatched
+
+
+def test_weighted_pick_rejects_missing_configured_level_group(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    incomplete_qianpu = tuple(q for q in get_qianpu() if q.level == "上上")
+    monkeypatch.setattr(qian_service, "get_qianpu", lambda: incomplete_qianpu)
+    monkeypatch.setattr(qian_service.secrets, "randbelow", lambda _: 0)
+
+    with pytest.raises(AppError) as error:
+        _weighted_pick(None)
+
+    assert error.value.status_code == 503
+    assert error.value.code == "QIANPU_UNAVAILABLE"
 
 
 def test_weighted_pick_always_valid():
