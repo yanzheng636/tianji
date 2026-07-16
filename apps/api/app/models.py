@@ -131,50 +131,41 @@ class Wish(Base, TimestampMixin):
     )
 
 
+class ChatSession(Base, TimestampMixin):
+    """一次「问室对谈」。同一用户可有多条会话，各自独立成线。"""
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_cuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(60))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (Index("ix_chat_session_user_updated", "user_id", "updated_at"),)
+
+
 class ChatMessage(Base, TimestampMixin):
     __tablename__ = "chat_messages"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_cuid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("chat_sessions.id", ondelete="CASCADE")
+    )
     role: Mapped[str] = mapped_column(String(12))  # user | assistant
     text: Mapped[str] = mapped_column(Text)
     citation_json: Mapped[dict | None] = mapped_column(JSONB)
 
-    __table_args__ = (Index("ix_chat_user_created", "user_id", "created_at"),)
-
-
-class Book(Base):
-    __tablename__ = "books"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_cuid)
-    slug: Mapped[str] = mapped_column(String(40), unique=True, index=True)
-    char: Mapped[str] = mapped_column(String(4))
-    name: Mapped[str] = mapped_column(String(40))
-    meta: Mapped[str] = mapped_column(String(80))
-    sort: Mapped[int] = mapped_column(Integer, default=0)
-
-    passages: Mapped[list[Passage]] = relationship(
-        back_populates="book", cascade="all, delete-orphan"
+    __table_args__ = (
+        Index("ix_chat_user_created", "user_id", "created_at"),
+        Index("ix_chat_session_created", "session_id", "created_at"),
     )
 
 
-class Passage(Base):
-    __tablename__ = "passages"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_cuid)
-    book_id: Mapped[str] = mapped_column(ForeignKey("books.id", ondelete="CASCADE"))
-    chapter: Mapped[str] = mapped_column(String(60))
-    text: Mapped[str] = mapped_column(Text)
-    plain: Mapped[str] = mapped_column(Text, default="")
-    topic: Mapped[str] = mapped_column(String(20), default="general")
-    # 关键词检索加权用的术语标签
-    tags: Mapped[list[str] | None] = mapped_column(JSONB)
-    embedding: Mapped[list[float] | None] = mapped_column(JSONB)  # 无 pgvector 时存 JSON
-    sort: Mapped[int] = mapped_column(Integer, default=0)
-
-    book: Mapped[Book] = relationship(back_populates="passages")
-
-    __table_args__ = (Index("ix_passage_book_sort", "book_id", "sort"),)
+# 古籍语料不再入库：藏经阁/问卦/签谱统一读 knowledge_wiki/graph.json
+# （旧 books/passages 表由 20260716 迁移删除）
 
 
 class Order(Base, TimestampMixin):

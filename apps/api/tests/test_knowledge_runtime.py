@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from app.knowledge.runtime import GraphHit, retrieve_graph
 from app.services import scripture
 
@@ -166,8 +164,7 @@ def test_graph_retrieval_scopes_ambiguous_concept_by_intent(tmp_path):
     assert [hit.book for hit in reviewed] == ["卜书"]
 
 
-@pytest.mark.asyncio
-async def test_scripture_prefers_graph_without_touching_database(monkeypatch):
+def test_scripture_serves_citations_from_graph(monkeypatch):
     hit = GraphHit(
         source_id="source:demo:1",
         book="示例古籍",
@@ -179,26 +176,29 @@ async def test_scripture_prefers_graph_without_touching_database(monkeypatch):
         path="sources/passages/demo.md#source-demo-1",
         score=12.0,
     )
-    monkeypatch.setattr(scripture, "get_graph_index", lambda: object())
     monkeypatch.setattr(scripture, "retrieve_graph", lambda *args, **kwargs: [hit])
 
-    class FailIfUsed:
-        async def scalars(self, *_args, **_kwargs):
-            raise AssertionError("图谱命中后不应查询旧数据库")
-
-    citations = await scripture.retrieve(FailIfUsed(), "如何取用神", topic="divination", k=1)
+    citations = scripture.retrieve("如何取用神", topic="divination", k=1)
 
     assert citations[0].source_id == hit.source_id
     assert citations[0].concepts == ["用神"]
 
 
-@pytest.mark.asyncio
-async def test_scripture_does_not_fallback_when_graph_has_no_verified_match(monkeypatch):
-    monkeypatch.setattr(scripture, "get_graph_index", lambda: object())
+def test_scripture_returns_nothing_when_graph_has_no_verified_match(monkeypatch):
+    # 数据库语料通道已退役：图谱无可靠命中时必须保持「无引用」，没有降级路径。
     monkeypatch.setattr(scripture, "retrieve_graph", lambda *args, **kwargs: [])
 
-    class FailIfUsed:
-        async def scalars(self, *_args, **_kwargs):
-            raise AssertionError("图谱正常但无可靠命中时不应查询旧数据库")
+    assert scripture.retrieve("无可靠依据的问题", topic="divination") == []
 
-    assert await scripture.retrieve(FailIfUsed(), "无可靠依据的问题", topic="divination") == []
+
+def test_scripture_books_come_from_graph():
+    books = scripture.list_books()
+    assert len(books) == 13
+    slugs = {book.slug for book in books}
+    assert "guandi-lingqian" in slugs
+    assert all(book.passage_count > 0 for book in books)
+
+    detail = scripture.get_book("guandi-lingqian")
+    assert detail is not None
+    assert detail.passages
+    assert scripture.get_book("no-such-book") is None

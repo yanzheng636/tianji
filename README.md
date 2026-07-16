@@ -69,8 +69,9 @@ cp .env.example .env
 uv venv --python 3.11
 uv pip install -r requirements.txt        # 或 uv pip install -e ".[dev]"
 uv run alembic upgrade head               # 建表
-uv run python -m app.seed                 # 灌藏经阁语料
 uv run uvicorn app.main:app --port 3001 --reload
+# 藏经阁/签谱语料直接读仓库内 knowledge_wiki/graph.json，无需灌库
+
 
 # 3. 前端（另开终端）
 cd apps/web

@@ -48,7 +48,11 @@ def _default_graph_path() -> Path:
     configured = os.getenv("KNOWLEDGE_GRAPH_PATH")
     if configured:
         return Path(configured).expanduser().resolve()
-    return Path(__file__).resolve().parents[4] / "knowledge_wiki" / "graph.json"
+    parents = Path(__file__).resolve().parents
+    # 仓库内为 <root>/apps/api/app/knowledge/runtime.py；容器等浅目录场景下
+    # 取不到 parents[4] 时退回最上层，让缺失表现为「文件不存在」而非崩溃。
+    root = parents[4] if len(parents) > 4 else parents[-1]
+    return root / "knowledge_wiki" / "graph.json"
 
 
 def _bigrams(value: str) -> set[str]:

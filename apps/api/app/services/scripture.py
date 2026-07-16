@@ -1,141 +1,130 @@
-"""藏经阁 + 可溯源知识检索。
+"""藏经阁 + 可溯源知识检索：全部读取知识图谱构建产物。
 
-优先走确定性知识图谱；图谱不可用时降级为数据库关键词打分。
-检索过程不调用项目 LLM 或 embedding，命中的原文作为 citation 供问卦溯源。
+书目、原文、引用与命理百科（services.wiki）共用同一份 ``knowledge_wiki/graph.json``，
+「藏经阁翻到的」「大师引用的」「摇到的签」三处同源。旧的数据库语料通道已退役：
+图谱没有 verified 命中时保持"无引用"，绝不回退到无质量标注的残本。
 """
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.knowledge.graph_catalog import DOMAINS
 from app.knowledge.runtime import get_graph_index, retrieve_graph
-from app.models import Book, Passage
 from app.schemas import BookDetailOut, BookSummaryOut, CitationOut, PassageOut
+from app.services.wiki import DOMAIN_CHAR
+
+_DOMAIN_ORDER = {spec.slug: index for index, spec in enumerate(DOMAINS)}
+
+# 书页一次返回的原文上限（三命通会有两千余段，全量下发无意义）
+MAX_BOOK_PASSAGES = 200
 
 
-async def list_books(db: AsyncSession) -> list[BookSummaryOut]:
-    rows = (await db.scalars(select(Book).order_by(Book.sort, Book.name))).all()
-    out: list[BookSummaryOut] = []
-    for b in rows:
-        cnt = await db.scalar(
-            select(func.count()).select_from(Passage).where(Passage.book_id == b.id)
+def _book_passages(index, book_id: str) -> list[dict]:
+    """书页阅读用原文：保留待复核段（阅读原书 ≠ 引用证据），剔除不可用段。"""
+    rows = []
+    for node_id, node in index.nodes.items():
+        if node.get("type") != "source" or node.get("status") == "unusable":
+            continue
+        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        if str(metadata.get("book_id") or "") != book_id:
+            continue
+        rows.append(
+            {
+                "id": node_id,
+                "sequence": int(metadata.get("sequence") or 0),
+                "chapter": str(metadata.get("chapter") or "正文"),
+                "text": str(metadata.get("text") or node.get("description") or ""),
+                "quality": str(node.get("status") or "review-needed"),
+            }
         )
-        out.append(
-            BookSummaryOut(
-                slug=b.slug, char=b.char, name=b.name, meta=b.meta, passage_count=cnt or 0
+    rows.sort(key=lambda item: item["sequence"])
+    return rows
+
+
+def list_books() -> list[BookSummaryOut]:
+    index = get_graph_index()
+    if index is None:
+        return []
+    counts: dict[str, int] = {}
+    for node in index.nodes.values():
+        if node.get("type") != "source" or node.get("status") == "unusable":
+            continue
+        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        book_id = str(metadata.get("book_id") or "")
+        if book_id:
+            counts[book_id] = counts.get(book_id, 0) + 1
+
+    books: list[tuple[tuple[int, str], BookSummaryOut]] = []
+    for node_id, node in index.nodes.items():
+        if node.get("type") != "book":
+            continue
+        slug = node_id.removeprefix("book:")
+        domain = str(node.get("domain") or "")
+        books.append(
+            (
+                (_DOMAIN_ORDER.get(domain, len(_DOMAIN_ORDER)), slug),
+                BookSummaryOut(
+                    slug=slug,
+                    char=DOMAIN_CHAR.get(domain, "典"),
+                    name=str(node.get("name") or slug),
+                    meta=str(node.get("description") or "古籍"),
+                    passage_count=counts.get(slug, 0),
+                ),
             )
         )
-    return out
+    return [book for _, book in sorted(books, key=lambda item: item[0])]
 
 
-async def get_book(db: AsyncSession, slug: str) -> BookDetailOut | None:
-    b = await db.scalar(select(Book).where(Book.slug == slug))
-    if b is None:
+def get_book(slug: str) -> BookDetailOut | None:
+    index = get_graph_index()
+    if index is None:
         return None
-    passages = (
-        await db.scalars(
-            select(Passage).where(Passage.book_id == b.id).order_by(Passage.sort)
-        )
-    ).all()
-    cnt = len(passages)
+    node = index.nodes.get(f"book:{slug}")
+    if node is None or node.get("type") != "book":
+        return None
+    rows = _book_passages(index, slug)
+    domain = str(node.get("domain") or "")
     return BookDetailOut(
-        slug=b.slug,
-        char=b.char,
-        name=b.name,
-        meta=b.meta,
-        passage_count=cnt,
+        slug=slug,
+        char=DOMAIN_CHAR.get(domain, "典"),
+        name=str(node.get("name") or slug),
+        meta=str(node.get("description") or "古籍"),
+        passage_count=len(rows),
         passages=[
-            PassageOut(id=p.id, chapter=p.chapter, text=p.text, plain=p.plain) for p in passages
+            PassageOut(
+                id=row["id"],
+                chapter=row["chapter"],
+                text=row["text"],
+                plain="",
+                quality=row["quality"],
+            )
+            for row in rows[:MAX_BOOK_PASSAGES]
         ],
     )
 
 
-def _bigrams(s: str) -> set[str]:
-    s = "".join(ch for ch in s if ch.strip())
-    return {s[i : i + 2] for i in range(len(s) - 1)} if len(s) >= 2 else set(s)
-
-
-def _keyword_score(query: str, p: Passage, topic: str | None) -> float:
-    """中文关键词打分：主题命中 + 标签命中 + 二元词（bigram）重叠。
-
-    二元词比单字更能反映语义（"文昌"命中比零散的"文""昌"更可信），
-    对古籍这种术语固定的语料尤其有效。
-    """
-    score = 0.0
-    if topic and p.topic == topic:
-        score += 2.0
-
-    # 标签精确命中（术语级）权重高
-    for tag in p.tags or []:
-        if tag in query:
-            score += 1.2
-
-    # bigram 重叠
-    q = _bigrams(query)
-    if q:
-        doc = _bigrams(p.text) | _bigrams(p.plain)
-        overlap = len(q & doc)
-        score += overlap * 0.6
-
-    return score
-
-
-async def retrieve(
-    db: AsyncSession, query: str, topic: str | None = None, k: int = 1
-) -> list[CitationOut]:
-    """按“意图 -> 概念 -> 一跳关系 -> 原典”检索；仅图谱不可用时降级。"""
-    graph_available = get_graph_index() is not None
+def retrieve(query: str, topic: str | None = None, k: int = 1) -> list[CitationOut]:
+    """按「意图 -> 概念 -> 一跳关系 -> 原典」检索；只认 verified 证据。"""
     graph_hits = retrieve_graph(query, topic=topic, k=k)
-    if graph_hits:
-        return [
-            CitationOut(
-                book=hit.book,
-                chapter=hit.chapter,
-                text=hit.text,
-                plain=(
-                    f"图谱命中：{topic or 'general'}"
-                    + (f"；相关概念：{'、'.join(hit.concepts)}" if hit.concepts else "")
-                ),
-                source_id=hit.source_id,
-                quality=hit.quality,
-                concepts=list(hit.concepts),
-                intent=topic,
-                path=hit.path,
-                relation_hops=list(hit.relation_hops),
-                structure=hit.structure,
-            )
-            for hit in graph_hits
-        ]
-    if graph_available:
-        # 图谱正常但没有 verified 命中时，必须保持“无引用”；不能回退到
-        # 缺少页级质量状态的旧数据库，把待复核残本重新包装成可靠证据。
-        return []
-
-    passages = (await db.scalars(select(Passage))).all()
-    if not passages:
-        return []
-
-    scored = [(_keyword_score(query, passage, topic), passage) for passage in passages]
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top = [p for s, p in scored[:k] if s > 0]
-
-    result: list[CitationOut] = []
-    for p in top:
-        book = await db.get(Book, p.book_id)
-        result.append(
-            CitationOut(
-                book=book.name if book else "古籍",
-                chapter=p.chapter,
-                text=p.text,
-                plain=p.plain,
-                quality="verified",
-                intent=topic,
-            )
+    return [
+        CitationOut(
+            book=hit.book,
+            chapter=hit.chapter,
+            text=hit.text,
+            plain=(
+                f"图谱命中：{topic or 'general'}"
+                + (f"；相关概念：{'、'.join(hit.concepts)}" if hit.concepts else "")
+            ),
+            source_id=hit.source_id,
+            quality=hit.quality,
+            concepts=list(hit.concepts),
+            intent=topic,
+            path=hit.path,
+            relation_hops=list(hit.relation_hops),
+            structure=hit.structure,
         )
-    return result
+        for hit in graph_hits
+    ]
 
 
-async def search(db: AsyncSession, q: str, limit: int) -> list[CitationOut]:
-    return await retrieve(db, q, topic=None, k=limit)
+def search(q: str, limit: int) -> list[CitationOut]:
+    return retrieve(q, topic=None, k=limit)

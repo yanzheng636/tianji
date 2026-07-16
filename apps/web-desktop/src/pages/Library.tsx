@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import type { BookDetail, BookSummary, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiQuality, WikiSearchResult } from '../types';
+import type { BookDetail, BookSummary, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiEvidence, WikiQuality, WikiSearchResult } from '../types';
 
 const classics: BookSummary[] = [
   { slug: 'yijing', char: '易', name: '周易', meta: '群经之首 · 观变之书', passageCount: 64 },
@@ -111,19 +111,75 @@ export function LibraryConcept() {
   const { conceptId = '' } = useParams();
   const [detail, setDetail] = useState<WikiConceptDetail | null>(null);
   const [error, setError] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  useEffect(() => { void api.wikiConcept(conceptId).then(setDetail).catch((reason) => setError(errorMessage(reason))); }, [conceptId]);
+  useEffect(() => { setDetail(null); setError(''); void api.wikiConcept(conceptId).then(setDetail).catch((reason) => setError(errorMessage(reason))); }, [conceptId]);
   if (!detail) return <WikiPageState title="概念词条" error={error} />;
 
-  const toggle = (id: string) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   return (
     <div className="wiki-concept-page">
       <header className="wiki-concept-heading"><div className="wiki-breadcrumb"><Link to="/library">书阁</Link><span>／</span><Link to={`/library/domain/${detail.domain}`}>{detail.domainName}</Link><span>／</span><b>{detail.name}</b></div><div><p className="museum-label"><span>{detail.domainName}</span><i />概念词条</p><h1>{detail.name}</h1>{detail.aliases.length ? <small>又称：{detail.aliases.join(' · ')}</small> : null}</div><QualityBadge quality={detail.status} /></header>
       <main className="wiki-concept-layout">
         <article className="wiki-definition"><p>白话释义</p><blockquote>{detail.definition}</blockquote>{detail.intents.length ? <div><span>用于</span>{detail.intents.map((intent) => <i key={intent}>{intent}</i>)}</div> : null}{detail.related.length ? <section><p>相关概念</p>{detail.related.map((related) => <Link key={related.id} to={`/library/concept/${encodeURIComponent(related.id)}`}><b>{related.name}</b><small>{related.relation}</small><span>→</span></Link>)}</section> : null}<Link className="wiki-ask-link" to={`/chat?prompt=${encodeURIComponent(`帮我讲讲「${detail.name}」`)}`}>带着这个概念去问室 <span>→</span></Link></article>
-        <section className="wiki-evidence"><header><div><p>原文证据</p><h2>每一句，都能回到出处。</h2></div><span>{detail.evidence.length} / {detail.evidenceTotal}</span></header>{detail.evidence.length ? detail.evidence.map((evidence, index) => { const open = expanded.has(evidence.sourceId); return <article key={evidence.sourceId}><div className="wiki-evidence-index"><span>{String(index + 1).padStart(2, '0')}</span><QualityBadge quality={evidence.quality} /></div><div><p>《{evidence.book}》<small>{evidence.chapter}</small></p><blockquote className={open ? 'is-open' : ''}>{evidence.text}</blockquote><button onClick={() => toggle(evidence.sourceId)}>{open ? '收起原文 ↑' : '展开原文 ↓'}</button></div></article>; }) : <div className="wiki-empty"><b>暂无可展示证据</b><p>该词条仍在整理中。</p></div>}<footer>按历史文献知识保存，不等同于现代医学、法律或确定性现实结论。</footer></section>
+        <EvidenceSection key={detail.id} detail={detail} />
       </main>
     </div>
+  );
+}
+
+const EVIDENCE_PAGE_SIZE = 10;
+
+/** 词条页「原文证据」：整库翻页 + 关键词检索（服务端过滤，空格分隔多个关键词）。 */
+function EvidenceSection({ detail }: { detail: WikiConceptDetail }) {
+  const [input, setInput] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [data, setData] = useState<{ items: WikiEvidence[]; total: number }>({ items: detail.evidence, total: detail.evidenceTotal });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const sectionRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // 首页且未检索时直接用词条详情自带的第一页，避免重复请求。
+    if (page === 0 && !activeQuery) { setData({ items: detail.evidence, total: detail.evidenceTotal }); return; }
+    let cancelled = false;
+    setLoading(true); setError('');
+    api.wikiConceptEvidence(detail.id, { offset: page * EVIDENCE_PAGE_SIZE, limit: EVIDENCE_PAGE_SIZE, q: activeQuery })
+      .then((result) => { if (!cancelled) setData({ items: result.items, total: result.total }); })
+      .catch((reason) => { if (!cancelled) { setError(errorMessage(reason)); setData({ items: [], total: 0 }); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [detail, page, activeQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(data.total / EVIDENCE_PAGE_SIZE));
+  const toggle = (id: string) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const goto = (next: number) => { setPage(next); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+
+  return (
+    <section className="wiki-evidence" ref={sectionRef}>
+      <header><div><p>原文证据</p><h2>每一句，都能回到出处。</h2></div><span>{data.total.toLocaleString('zh-CN')} 段</span></header>
+      <form className="wiki-evidence-toolbar" onSubmit={(event) => { event.preventDefault(); setActiveQuery(input.trim()); setPage(0); }}>
+        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={`在 ${detail.evidenceTotal.toLocaleString('zh-CN')} 段原文中检索，如「功名」「婚姻」`} />
+        {activeQuery ? <button type="button" onClick={() => { setInput(''); setActiveQuery(''); setPage(0); }}>清除 ×</button> : null}
+        <button type="submit">检索 ⌕</button>
+      </form>
+      {activeQuery && !loading ? <p className="wiki-evidence-hits">「{activeQuery}」命中 {data.total.toLocaleString('zh-CN')} / {detail.evidenceTotal.toLocaleString('zh-CN')} 段</p> : null}
+      {error ? <div className="wiki-empty"><b>证据暂未载入</b><p>{error}</p></div> : null}
+      {loading ? <WikiLoader label="正在翻检原文…" /> : null}
+      {!loading && !error ? (data.items.length ? data.items.map((evidence, index) => {
+        const open = expanded.has(evidence.sourceId);
+        return <article key={evidence.sourceId}><div className="wiki-evidence-index"><span>{String(page * EVIDENCE_PAGE_SIZE + index + 1).padStart(2, '0')}</span><QualityBadge quality={evidence.quality} /></div><div><p>《{evidence.book}》<small>{evidence.chapter}</small></p><blockquote className={open ? 'is-open' : ''}>{evidence.text}</blockquote><button onClick={() => toggle(evidence.sourceId)}>{open ? '收起原文 ↑' : '展开原文 ↓'}</button></div></article>;
+      }) : <div className="wiki-empty"><b>{activeQuery ? '没有命中的原文' : '暂无可展示证据'}</b><p>{activeQuery ? '换一个更短的关键词，或注意原文多为繁体用字。' : '该词条仍在整理中。'}</p></div>) : null}
+      {totalPages > 1 && !error ? (
+        <nav className="wiki-evidence-pager" aria-label="证据分页">
+          <button disabled={page === 0 || loading} onClick={() => goto(0)}>«</button>
+          <button disabled={page === 0 || loading} onClick={() => goto(page - 1)}>‹ 上一页</button>
+          <span>第 {page + 1} / {totalPages} 页</span>
+          <button disabled={page + 1 >= totalPages || loading} onClick={() => goto(page + 1)}>下一页 ›</button>
+          <button disabled={page + 1 >= totalPages || loading} onClick={() => goto(totalPages - 1)}>»</button>
+        </nav>
+      ) : null}
+      <footer>按历史文献知识保存，不等同于现代医学、法律或确定性现实结论。</footer>
+    </section>
   );
 }
 

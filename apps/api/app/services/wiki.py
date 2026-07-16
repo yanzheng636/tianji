@@ -30,8 +30,9 @@ DOMAIN_CHAR = {
     "cultivation": "修",
 }
 
-# 词条页原文证据的展示上限；其余只报总数，避免把上百段 OCR 原文一次性倒给用户。
-MAX_EVIDENCE = 6
+# 词条页原文证据默认一页的条数；全部证据经 /concepts/{id}/evidence 按页翻阅，
+# 避免把上百段 OCR 原文一次性倒给用户。
+MAX_EVIDENCE = 10
 
 # 概念↔概念关系的中文标签（用于词条页「相关概念」的胶囊）。
 RELATION_LABEL = {
@@ -212,6 +213,49 @@ def _related_concepts(index: GraphIndex, concept_id: str) -> list[dict[str, Any]
     return related
 
 
+def _collect_evidence(index: GraphIndex, node: dict[str, Any]) -> list[dict[str, Any]]:
+    """概念的全部可用证据。verified 排前面（稳定排序保持图谱原始顺序），分页因此稳定。"""
+    evidence_all: list[dict[str, Any]] = []
+    for source_id in node.get("evidence", []) or []:
+        item = _resolve_evidence(index, str(source_id))
+        if item is not None:
+            evidence_all.append(item)
+    # verified 排前面，让最可靠的证据先出现；待校残本仍保留但降序。
+    evidence_all.sort(key=lambda e: 0 if e["quality"] == "verified" else 1)
+    return evidence_all
+
+
+def concept_evidence(
+    concept_id: str, *, offset: int = 0, limit: int = MAX_EVIDENCE, query: str = ""
+) -> dict[str, Any] | None:
+    """词条证据翻页：offset/limit 取任意一页；query 按空格分词，全部命中才保留。
+
+    语料多为繁体 OCR，匹配是朴素子串（书名 / 章节 / 正文任一字段），
+    不做简繁转换——输入需与原文用字一致。
+    """
+    index = get_graph_index()
+    if index is None:
+        return None
+    node = index.nodes.get(concept_id)
+    if not node or node.get("type") != "concept":
+        return None
+
+    items = _collect_evidence(index, node)
+    terms = [t for t in query.split() if t]
+    if terms:
+        items = [
+            e
+            for e in items
+            if all(t in e["text"] or t in e["book"] or t in e["chapter"] for t in terms)
+        ]
+    return {
+        "items": items[offset : offset + limit],
+        "total": len(items),
+        "offset": offset,
+        "limit": limit,
+    }
+
+
 def concept_detail(concept_id: str) -> dict[str, Any] | None:
     """词条页：白话释义 + 相关概念 + 原文证据（verified 优先，其余标注待校）。"""
     index = get_graph_index()
@@ -223,14 +267,7 @@ def concept_detail(concept_id: str) -> dict[str, Any] | None:
 
     domain = str(node.get("domain") or "")
     domain_spec = DOMAIN_BY_SLUG.get(domain)
-
-    evidence_all: list[dict[str, Any]] = []
-    for source_id in node.get("evidence", []) or []:
-        item = _resolve_evidence(index, str(source_id))
-        if item is not None:
-            evidence_all.append(item)
-    # verified 排前面，让最可靠的证据先出现；待校残本仍保留但降序。
-    evidence_all.sort(key=lambda e: 0 if e["quality"] == "verified" else 1)
+    evidence_all = _collect_evidence(index, node)
 
     return {
         "id": concept_id,
@@ -257,12 +294,22 @@ def _match_concepts(index: GraphIndex, query: str, limit: int) -> list[dict[str,
         if spec:
             terms.update(spec.keywords)
             terms.update(spec.aliases)
-        matched = [t for t in terms if len(t) >= 2 and t in query]
-        if not matched:
+        # 双向子串：词条名出现在问句里（「印堂发黑怎么办」→ 印堂），
+        # 或输入只是词条名的一部分（「关圣」→ 关圣帝君灵签），都算命中。
+        score = 0.0
+        for term in terms:
+            if not term:
+                continue
+            if term == query:
+                score = max(score, 10.0)
+            elif len(term) >= 2 and term in query:
+                score = max(score, 6.0 + len(term) * 0.3)
+            elif query in term:
+                score = max(score, 4.0 + len(query) * 0.3)
+        if score <= 0:
             continue
         domain = str(node.get("domain") or "")
         domain_spec = DOMAIN_BY_SLUG.get(domain)
-        score = 6.0 + max(len(t) for t in matched) * 0.3
         hits.append(
             (
                 score,

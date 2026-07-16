@@ -139,6 +139,7 @@ class QianOut(CamelModel):
     id: str
     no: str
     level: str
+    story: str = ""  # 签题故事，如「呂洞賓煉丹」
     text: str
     src: str
     note: str
@@ -212,6 +213,7 @@ class WishPoolOut(CamelModel):
 class ChatIn(CamelModel):
     text: str = Field(min_length=1, max_length=CHAT_MAX_LENGTH)
     qian_id: str | None = None
+    session_id: str | None = None
 
     @field_validator("text")
     @classmethod
@@ -220,6 +222,12 @@ class ChatIn(CamelModel):
         if not v:
             raise ValueError("说点什么吧")
         return v
+
+
+class ChatSessionOut(CamelModel):
+    id: str
+    title: str
+    updated_at: datetime
 
 
 class CitationOut(CamelModel):
@@ -258,6 +266,7 @@ class PassageOut(CamelModel):
     chapter: str
     text: str
     plain: str
+    quality: Literal["verified", "review-needed"] = "verified"
 
 
 class BookDetailOut(BookSummaryOut):
@@ -327,6 +336,13 @@ class WikiConceptDetailOut(CamelModel):
     evidence: list[WikiEvidenceOut] = Field(default_factory=list)
     evidence_total: int = 0
     related: list[WikiRelatedConceptOut] = Field(default_factory=list)
+
+
+class WikiEvidencePageOut(CamelModel):
+    items: list[WikiEvidenceOut] = Field(default_factory=list)
+    total: int = 0
+    offset: int = 0
+    limit: int = 0
 
 
 class WikiConceptHitOut(CamelModel):

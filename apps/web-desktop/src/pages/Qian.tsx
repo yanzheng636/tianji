@@ -96,15 +96,18 @@ function QianReading({ result, onReset }: { result: QianResult; onReset: () => v
   return (
     <div className="premium-qian-result">
       <div className="premium-qian-paper">
-        <span>{result.no}</span><strong>{result.text}</strong><i>{result.level}</i><small>山问签录</small>
+        <span>{result.no}{result.story ? ` · ${result.story}` : ''}</span>
+        <strong>{result.text.split(/[，。]/).filter(Boolean).map((line, index) => <em key={index}>{line}</em>)}</strong>
+        <i>{result.level}</i><small>關聖帝君靈籤</small>
       </div>
       <article>
         <p className="museum-label"><span>此签照见</span><i />READING</p>
         <h2>{result.level}</h2>
+        {result.story ? <p className="qian-story">签题 · {result.story}</p> : null}
         <p>{result.note}</p>
         <blockquote>{result.text}</blockquote>
         <small>原典出处 · {result.src}</small>
-        <div><button onClick={onReset}>再问一事</button><Link to="/chat">带此签去问卦 <span>→</span></Link></div>
+        <div><button onClick={onReset}>再问一事</button><Link to={`/chat?qian=${encodeURIComponent(result.id)}`}>带此签去问卦 <span>→</span></Link></div>
       </article>
     </div>
   );

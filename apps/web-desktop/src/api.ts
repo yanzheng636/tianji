@@ -1,4 +1,4 @@
-import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, Quota, TodayFortune, User, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiSearchResult, Wish, WishPool } from './types';
+import type { AuthResult, BaziChart, BirthProfile, BookDetail, BookSummary, ChatMessage, ChatSession, ChatStreamEvent, Citation, Incense, MetaConfig, Order, Qian, Quota, TodayFortune, User, WikiConceptDetail, WikiDomainDetail, WikiDomainSummary, WikiEvidencePage, WikiSearchResult, Wish, WishPool } from './types';
 
 const TOKEN_KEY = 'tj_desktop_guest_token_v1';
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -65,15 +65,24 @@ export const api = {
   wikiDomains: () => request<WikiDomainSummary[]>('GET', '/api/wiki/domains'),
   wikiDomain: (slug: string) => request<WikiDomainDetail>('GET', `/api/wiki/domains/${encodeURIComponent(slug)}`),
   wikiConcept: (id: string) => request<WikiConceptDetail>('GET', `/api/wiki/concepts/${encodeURIComponent(id)}`),
-  wikiSearch: (query: string) => request<WikiSearchResult>('GET', `/api/wiki/search?q=${encodeURIComponent(query)}`),
+  wikiConceptEvidence: (id: string, opts: { offset?: number; limit?: number; q?: string } = {}) => {
+    const params = new URLSearchParams({ offset: String(opts.offset ?? 0), limit: String(opts.limit ?? 10) });
+    if (opts.q) params.set('q', opts.q);
+    return request<WikiEvidencePage>('GET', `/api/wiki/concepts/${encodeURIComponent(id)}/evidence?${params}`);
+  },
+  wikiSearch: (query: string, limit = 12) => request<WikiSearchResult>('GET', `/api/wiki/search?q=${encodeURIComponent(query)}&limit=${limit}`),
   getProfile: () => request<{ profile: BirthProfile | null; chart: BaziChart | null }>('GET', '/api/profile'),
   saveProfile: (profile: Partial<BirthProfile> & { nickname?: string }) => request<{ profile: BirthProfile; chart: BaziChart }>('PUT', '/api/profile', profile),
   chatHistory: () => request<ChatMessage[]>('GET', '/api/chat/history'),
+  chatSessions: () => request<ChatSession[]>('GET', '/api/chat/sessions'),
+  createChatSession: () => request<ChatSession>('POST', '/api/chat/sessions'),
+  sessionMessages: (id: string) => request<ChatMessage[]>('GET', `/api/chat/sessions/${id}/messages`),
+  deleteChatSession: (id: string) => request<null>('DELETE', `/api/chat/sessions/${id}`),
   createOrder: (body: { kind: 'lamp' | 'merit'; plan?: string; amountFen?: number; refId?: string }) => request<Order>('POST', '/api/pay/orders', body),
   getOrder: (id: string) => request<Order>('GET', `/api/pay/orders/${id}`),
 };
 
-export function streamChat(body: { text: string; qianId?: string }, onEvent: (event: ChatStreamEvent) => void) {
+export function streamChat(body: { text: string; qianId?: string; sessionId?: string | null }, onEvent: (event: ChatStreamEvent) => void) {
   const controller = new AbortController();
   void (async () => {
     try {
